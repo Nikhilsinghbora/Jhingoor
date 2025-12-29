@@ -3,16 +3,16 @@ import logging
 import os
 import sys
 from dotenv import load_dotenv
-from aiogram import Bot, Dispatcher, html,F
-from aiogram.client.default import DefaultBotProperties
-from aiogram.enums import ParseMode
+from aiogram import Bot, Dispatcher, html
 from aiogram.filters import CommandStart
 from aiogram.types import Message
 from google import genai
+from bot.brain import process_multimodel
+from database.sync import save_jhingoor_data
 
-from src.bot.brain import process_multimodel
 
-
+if sys.platform.startswith("win"):
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 load_dotenv()
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
@@ -22,18 +22,17 @@ client = genai.Client()
 dp = Dispatcher()
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
+# async def on_startup():
+#     print("Checking database schema... 🦗")
+#     await init_db()
+#     print("Jhingoor is ready!")
 
+    
 @dp.message(CommandStart())
 async def command_start_handler(message: Message) -> None:
     """
     This handler receives messages with `/start` command
     """
-    # Most event objects have aliases for API methods that can be called in events' context
-    # For example if you want to answer to incoming message you can use `message.answer(...)` alias
-    # and the target chat will be passed to :ref:`aiogram.methods.send_message.SendMessage`
-    # method automatically or call API method directly via
-    # Bot instance: `bot.send_message(chat_id=message.chat.id, ...)`
-
     welcome_text = (
         "Chirp Chirp! 🦗 I am Jhingoor, your Fitness Wingman.\n\n"
         "Send me a photo of your meal, a voice note of your workout, "
@@ -41,71 +40,65 @@ async def command_start_handler(message: Message) -> None:
     )
     await message.answer(f"Hello, {html.bold(message.from_user.full_name)}! \n\n{welcome_text}")
 
-
-@dp.message(F.text)
-async def text_handler(message: Message) -> None:
-    """
-    Handler will forward receive a message back to the sender
-
-    By default, message handler will handle all message types (like a text, photo, sticker etc.)
-    """
+@dp.message()
+async def handlere_all_messages(message: Message, bot: Bot) -> None:
     try:
-        await message.answer(process_multimodel(str(message.text)))
-    except Exception as e:
-        logging.error(f"Error in echo_handler: {e}")
-        await message.answer("An error occurred while processing your request. Please try again later.")
-    except TypeError:
-        logging.error("TypeError in echo_handler")
-        # But not all the types is supported to be copied so need to handle it
-        await message.answer("Nice try!")
+        user_id = message.from_user.id
+        folder_path = f"userdata/{user_id}"
+        os.makedirs(folder_path, exist_ok=True)
 
-@dp.message(F.photo)
-async def image_handler(message: Message,bot:Bot):
-    """
-    Handler will process image messages
-    """
-    try:
-        await message.answer("Analyzing your image, please wait...🦗📸")
-        if message.photo:
-            photo = message.photo[-1]
-            photo_file = await photo.download()
-            image = genai.types.ImageInput.from_file(photo_file.name)
-            response = process_multimodel(photo_file.name, photo.content_type or "image/jpeg", "Provide a fitness and nutrition analysis of this image.")
-            await message.answer(response.candidates[0].content.parts[0].text)
+        # HANDLE TEXT MESSAGES
+        if message.text:
+            await message.answer("Processing your text... 🦗")
+            response = await process_multimodel(prompt=message.text)
+            await message.answer(response)
+
+        # HANDLE PHOTO OR VOICE
+        elif message.photo or message.voice:
+            user_caption = message.caption if message.caption else ""
+            
+            if message.photo:
+                await message.answer("Analyzing your image... 🦗📸")
+                media_obj = message.photo[-1]  # Get best quality
+                file_path = f"{folder_path}/image.png"
+                mime_type = "image/png"
+                base_prompt = f"Analyze this image for fitness and nutrition. User note: {user_caption}"
+            else:
+                await message.answer("Listening to your audio... 🦗🎤")
+                media_obj = message.voice
+                file_path = f"{folder_path}/voice.ogg"
+                mime_type = "audio/ogg"
+                base_prompt = f"Provide a fitness analysis based on this audio. User note: {user_caption}"
+
+
+            await bot.download(media_obj, destination=file_path)
+
+            
+            response = await process_multimodel(
+                file_path=file_path,
+                mime_type=mime_type,
+                prompt=base_prompt
+            )
+            db_result = await save_jhingoor_data(user_id, user_caption or message.text or "Media input", response)
+            if db_result:
+                kcal, protein = db_result
+                response += f"\n\n🦗 Logged {kcal} kcal and {protein}g protein to your daily stats!"
+            await message.answer(response)
+
+        # HANDLE UNSUPPORTED TYPES
         else:
-            await message.answer("Please send a valid image.")
+            await message.answer("Jhingoor only understands text, images, and voice notes for now! 🦗")
+
     except Exception as e:
-        logging.error(f"Error in image_handler: {e}")
-        await message.answer("An error occurred while processing your image. Please try again later.")
-
-@dp.message(F.voice)
-async def voice_handler(message: Message,bot:Bot):
-    """
-    Handler will process voice messages
-    """
-    try:
-        await message.answer("Listening your voice, please wait...🦗🎤")
-        if message.voice:
-            voice = message.voice
-            voice_file = await voice.download()
-
-            audio = genai.types.AudioInput.from_file(voice_file.name)
-            response = process_multimodel(voice_file.name, voice.content_type or "audio/ogg", "Provide a fitness and wellness analysis based on this voice message.")
-            await message.answer(response.candidates[0].content.parts[0].text)
-        else:
-            await message.answer("Please send a valid voice message.")
-    except Exception as e:
-        logging.error(f"Error in voice_handler: {e}")
-        await message.answer("An error occurred while processing your voice message. Please try again later.")
-
+        logging.error(f"Error in handlere_all_messages: {e}")
+        await message.answer("Chirp! Something went wrong. Please try again.")
 
 async def main() -> None:
     logging.info("Starting bot")
-    # Initialize Bot instance with default bot properties which will be passed to all API calls
-    bot = Bot(token=TELEGRAM_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    
-    # And the run events dispatching
+
+    bot = Bot(token=TELEGRAM_TOKEN)
     await dp.start_polling(bot)
+
 
 
 if __name__ == "__main__":
