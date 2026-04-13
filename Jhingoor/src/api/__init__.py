@@ -1,0 +1,1 @@
+"""Jhingoor HTTP API (FastAPI)."""

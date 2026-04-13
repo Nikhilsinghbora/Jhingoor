@@ -1,0 +1,21 @@
+/** Kinetic Obsidian tokens (from stitch dashboard / DESIGN.md) */
+export const colors = {
+  background: "#0c0e11",
+  surface: "#0c0e11",
+  surfaceContainerLow: "#111417",
+  surfaceContainerHigh: "#1d2024",
+  surfaceContainerHighest: "#23262a",
+  surfaceBright: "#292c31",
+  surfaceVariant: "#23262a",
+  primary: "#f6ffc0",
+  primaryContainer: "#daf900",
+  primaryFixed: "#daf900",
+  onPrimaryFixed: "#3f4900",
+  secondary: "#62fae3",
+  secondaryDim: "#50ebd5",
+  onSurface: "#f9f9fd",
+  onSurfaceVariant: "#aaabaf",
+  outlineVariant: "#46484b",
+  error: "#ff7351",
+  tertiary: "#ffe798",
+} as const;
