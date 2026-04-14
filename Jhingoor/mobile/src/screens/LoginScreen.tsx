@@ -1,8 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as AppleAuthentication from "expo-apple-authentication";
-import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -10,6 +9,7 @@ import { z } from "zod";
 
 import { api } from "../api/client";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { GoogleSignInBlock } from "./GoogleSignInBlock";
 import { colors } from "../theme/colors";
 import { typography } from "../theme/typography";
 import { useAuthStore } from "../store/authStore";
@@ -34,36 +34,10 @@ export function LoginScreen() {
     !!process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ||
     !!process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
 
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-  });
-
   const { control, handleSubmit, reset } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { email: "", password: "" },
   });
-
-  useEffect(() => {
-    const run = async () => {
-      if (response?.type !== "success") return;
-      const idToken =
-        (response.params as { id_token?: string }).id_token ||
-        (response.authentication as { idToken?: string } | null)?.idToken;
-      if (!idToken) return;
-      setLoading(true);
-      try {
-        const { data } = await api.post<{ access_token: string }>("/auth/google", { id_token: idToken });
-        await setSession(data.access_token);
-      } catch (e) {
-        Alert.alert("Google sign-in failed", String(e));
-      } finally {
-        setLoading(false);
-      }
-    };
-    void run();
-  }, [response, setSession]);
 
   const onSubmit = async (values: FormValues) => {
     setLoading(true);
@@ -190,19 +164,19 @@ export function LoginScreen() {
         </View>
 
         <View style={styles.socialRow}>
-          <PrimaryButton
-            title="Google"
-            variant="outline"
-            loading={loading}
-            onPress={async () => {
-              if (!googleConfigured || !request) {
-                Alert.alert("Google", "Set EXPO_PUBLIC_GOOGLE_* client IDs in .env");
-                return;
+          {googleConfigured ? (
+            <GoogleSignInBlock setSession={setSession} loading={loading} setLoading={setLoading} />
+          ) : (
+            <PrimaryButton
+              title="Google"
+              variant="outline"
+              loading={loading}
+              onPress={() =>
+                Alert.alert("Google", "Set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID (and iOS/Android IDs) in mobile/.env")
               }
-              await promptAsync();
-            }}
-            style={{ flex: 1, marginRight: 8, paddingVertical: 12 }}
-          />
+              style={{ flex: 1, marginRight: 8, paddingVertical: 12 }}
+            />
+          )}
           {Platform.OS === "ios" ? (
             <PrimaryButton
               title="Apple"

@@ -27,7 +27,10 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png",
+      "backgroundColor": "#0c0e11",
+      "name": "Jhingoor"
     }
   }
 }

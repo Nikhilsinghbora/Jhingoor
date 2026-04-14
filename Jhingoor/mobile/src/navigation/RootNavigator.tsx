@@ -1,6 +1,6 @@
 import { NavigationContainer, DarkTheme } from "@react-navigation/native";
 import { useEffect } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import { getAccessToken } from "../auth/tokenStorage";
 import { colors } from "../theme/colors";
@@ -27,8 +27,14 @@ export function RootNavigator() {
 
   useEffect(() => {
     void (async () => {
-      const t = await getAccessToken();
-      hydrateFromStorage(t);
+      let t: string | null = null;
+      try {
+        t = await getAccessToken();
+      } catch {
+        t = null;
+      } finally {
+        hydrateFromStorage(t);
+      }
     })();
   }, [hydrateFromStorage]);
 
@@ -36,12 +42,17 @@ export function RootNavigator() {
     return (
       <View style={styles.boot}>
         <ActivityIndicator color={colors.primaryContainer} size="large" />
+        <Text style={{ color: colors.onSurfaceVariant, marginTop: 12 }}>Starting…</Text>
       </View>
     );
   }
 
   return (
-    <NavigationContainer theme={navTheme}>{token ? <MainTabs /> : <AuthNavigator />}</NavigationContainer>
+    <View style={{ flex: 1 }}>
+      <NavigationContainer theme={navTheme}>
+        {token ? <MainTabs /> : <AuthNavigator />}
+      </NavigationContainer>
+    </View>
   );
 }
 

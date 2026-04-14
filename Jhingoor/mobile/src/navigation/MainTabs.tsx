@@ -42,6 +42,7 @@ export function MainTabs() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
+        sceneStyle: { flex: 1, backgroundColor: colors.background },
         tabBarStyle: {
           backgroundColor: colors.surfaceContainerLow,
           borderTopColor: colors.outlineVariant,
