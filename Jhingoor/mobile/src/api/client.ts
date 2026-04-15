@@ -24,7 +24,10 @@ export function configureApiAuthCallbacks(callbacks: AuthCallbacks) {
 }
 
 api.interceptors.request.use(async (config) => {
-  const token = await getAccessToken();
+  // SecureStore can fail on web / some environments (see tokenStorage); Zustand still holds the session.
+  const stored = await getAccessToken();
+  const memory = useAuthStore.getState().token;
+  const token = stored ?? memory;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

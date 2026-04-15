@@ -19,6 +19,7 @@
       "usesAppleSignIn": true
     },
     "android": {
+      "package": "com.jhingoor.mobile",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0c0e11"

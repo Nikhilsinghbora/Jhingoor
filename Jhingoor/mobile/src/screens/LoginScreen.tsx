@@ -1,5 +1,4 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as AppleAuthentication from "expo-apple-authentication";
 import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -30,9 +29,11 @@ export function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   const googleConfigured =
-    !!process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ||
-    !!process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ||
-    !!process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
+    Platform.OS === "web"
+      ? !!process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
+      : Platform.OS === "ios"
+        ? !!process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || !!process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID
+        : !!process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || !!process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID;
 
   const { control, handleSubmit, reset } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -58,7 +59,11 @@ export function LoginScreen() {
   };
 
   const onApple = async () => {
+    if (Platform.OS !== "ios") {
+      return;
+    }
     try {
+      const AppleAuthentication = await import("expo-apple-authentication");
       const cred = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
@@ -172,7 +177,10 @@ export function LoginScreen() {
               variant="outline"
               loading={loading}
               onPress={() =>
-                Alert.alert("Google", "Set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID (and iOS/Android IDs) in mobile/.env")
+                Alert.alert(
+                  "Google",
+                  "Set EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID (or WEB/IOS/ANDROID IDs) in mobile/.env",
+                )
               }
               style={{ flex: 1, marginRight: 8, paddingVertical: 12 }}
             />

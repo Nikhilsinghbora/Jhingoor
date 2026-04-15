@@ -1,6 +1,6 @@
 # Jhingoor
 
-Monorepo for **Jhingoor**: a fitness companion with a **Telegram bot** (multimodal AI via Gemini), a **FastAPI** backend for the mobile app, and an **Expo (React Native)** client. The API and mobile features use **PostgreSQL** with **SQLAlchemy** (async + **Alembic** migrations). Legacy **Supabase** helpers remain for some Telegram-side flows.
+Monorepo for **Jhingoor**: a fitness companion with a **Telegram bot** (multimodal AI via Gemini), a **FastAPI** backend for the mobile app, and an **Expo (React Native)** client. The API and mobile features use **PostgreSQL** with **SQLAlchemy** (async + **Alembic** migrations).
 
 **Stack:** Python 3.12+ · FastAPI · asyncpg · Expo SDK 54 · React Navigation · TanStack Query · Axios · Zustand · expo-secure-store
 
@@ -139,11 +139,32 @@ Edit `.env` with real credentials. Important groups:
 
 | Group | Purpose |
 |--------|---------|
-| `DB_*` | Async SQLAlchemy (`postgresql+asyncpg://…` built in code; SSL as in `session.py`). |
+| `DATABASE_URL` or `DB_*` | Async SQLAlchemy connection. `DATABASE_URL` is preferred; otherwise `DB_*` is used to build the URL. |
+| `DB_SSL_MODE` | Optional SSL toggle for Postgres (`require` for managed DBs, `disable` for local). |
 | `JWT_SECRET`, `GOOGLE_CLIENT_IDS`, `APPLE_CLIENT_IDS`, `CORS_ORIGINS` | API auth and CORS (`src/api/config.py`). |
 | `ALEMBIC_SYNC_DATABASE_URL` or same `DB_*` | Alembic uses **psycopg2** sync URL (`alembic/env.py`). |
 | `TELEGRAM_TOKEN` | Bot (`src/main.py`). |
 | `AI_MODEL` + Gemini / API keys | `src/bot/brain.py` (chat + Telegram). |
+| `USE_VERTEX_AI`, `VERTEX_PROJECT_ID`, `VERTEX_LOCATION` | Enable Vertex AI mode in `src/bot/brain.py`. |
+
+### LLM provider mode (Gemini API key vs Vertex AI)
+
+`src/bot/brain.py` supports two modes:
+
+- Default (`USE_VERTEX_AI=false`): Gemini Developer API (`genai.Client()`), usually with `GEMINI_API_KEY` / `GOOGLE_AI_API_KEY`.
+- Vertex mode (`USE_VERTEX_AI=true`): `genai.Client(vertexai=True, project=..., location=...)`.
+
+For Vertex mode set:
+
+- `USE_VERTEX_AI=true`
+- `VERTEX_PROJECT_ID=<your-gcp-project-id>`
+- `VERTEX_LOCATION=us-central1` (or your region)
+
+Authenticate via Application Default Credentials (ADC), for example:
+
+```bash
+gcloud auth application-default login
+```
 
 ### Migrations
 
@@ -222,6 +243,9 @@ Run with working directory **`src/`** so imports like `from bot.brain import …
 ```bash
 cd src
 python main.py
+
+cd "C:\Users\Nikhil\OneDrive\Desktop\Jhingoor\Jhingoor\src"
+uv run uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Requires **`TELEGRAM_TOKEN`** in `.env`.
@@ -243,7 +267,12 @@ npm install
 | `EXPO_PUBLIC_API_URL` | `http://127.0.0.1:8000/api/v1` | Same machine. |
 | | `http://10.0.2.2:8000/api/v1` | **Android emulator** → host loopback. |
 | | `http://192.168.x.x:8000/api/v1` | Physical device on LAN (use host IP). |
-| `EXPO_PUBLIC_GOOGLE_*` | *(optional)* | Web / iOS / Android OAuth client IDs for native Google sign-in. |
+| `EXPO_PUBLIC_GOOGLE_*` | *(optional)* | Expo/Web/iOS/Android OAuth client IDs for Google sign-in. |
+
+Google OAuth auth flow in app:
+- Login/Signup screen supports Google with `expo-auth-session`.
+- Google sign-in calls backend `POST /api/v1/auth/google`.
+- Backend performs login-or-register, so it works for both **sign up** and **login** with the same button.
 
 ```bash
 npm run start
@@ -279,7 +308,45 @@ UI tokens follow **Kinetic Obsidian** (electric lime / teal on charcoal). Canoni
 pytest
 ```
 
-From repo root with dev deps (`uv sync --all-groups`). Covers **`GET /health`**, JWT/password helpers, and auth routes that do not need a live database.
+From repo root with dev deps (`uv sync --all-groups`). Covers **`GET /health`**, JWT/password helpers, auth routes, and health intelligence API/tooling tests.
+
+---
+
+## Health intelligence API (Phase 1)
+
+All routes are under `/api/v1/health` and require bearer auth.
+
+- `POST /nutrition/log`
+- `GET /nutrition/plan`
+- `POST /sleep/log`
+- `GET /recovery`
+- `POST /mood/log`
+- `GET /insights/advanced`
+
+Example response (`GET /api/v1/health/recovery`):
+
+```json
+{
+  "score": 82.0,
+  "status": "good",
+  "sleep_entries": 6
+}
+```
+
+Example response (`GET /api/v1/health/insights/advanced`):
+
+```json
+{
+  "summary": "diet: Daily target 2200 kcal... | recovery: Recovery score is 78.5 (good).",
+  "structured": {
+    "diet": {"summary": "...", "payload": {}},
+    "workout": {"summary": "...", "payload": {}},
+    "recovery": {"summary": "...", "payload": {}},
+    "behavior": {"summary": "...", "payload": {}},
+    "women_health": {"summary": "...", "payload": {}}
+  }
+}
+```
 
 ---
 

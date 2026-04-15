@@ -85,6 +85,10 @@ class User(Base):
     chat_messages: Mapped[list["ChatMessage"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     weight_entries: Mapped[list["WeightEntry"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     hydration_days: Mapped[list["HydrationDay"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    nutrition_logs: Mapped[list["NutritionLog"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    sleep_logs: Mapped[list["SleepLog"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    mood_logs: Mapped[list["MoodLog"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    menstrual_cycles: Mapped[list["MenstrualCycle"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
 class OAuthAccount(Base):
@@ -246,3 +250,67 @@ class BiometricSnapshot(Base):
     value: Mapped[float] = mapped_column(Float)
     change_label: Mapped[str | None] = mapped_column(String(32), nullable=True)
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class NutritionLog(Base):
+    __tablename__ = "nutrition_logs"
+    __table_args__ = (UniqueConstraint("user_id", "date", name="uq_nutrition_log_user_date"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("app_users.id", ondelete="CASCADE"), index=True
+    )
+    date: Mapped[date] = mapped_column(Date, index=True)
+    calories: Mapped[int] = mapped_column(Integer, default=0)
+    protein: Mapped[int] = mapped_column(Integer, default=0)
+    carbs: Mapped[int] = mapped_column(Integer, default=0)
+    fat: Mapped[int] = mapped_column(Integer, default=0)
+    source: Mapped[str] = mapped_column(String(32), default="manual")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user: Mapped["User"] = relationship(back_populates="nutrition_logs")
+
+
+class SleepLog(Base):
+    __tablename__ = "sleep_logs"
+    __table_args__ = (UniqueConstraint("user_id", "date", name="uq_sleep_log_user_date"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("app_users.id", ondelete="CASCADE"), index=True
+    )
+    sleep_hours: Mapped[float] = mapped_column(Float, default=0.0)
+    sleep_quality: Mapped[int] = mapped_column(Integer, default=5)
+    date: Mapped[date] = mapped_column(Date, index=True)
+
+    user: Mapped["User"] = relationship(back_populates="sleep_logs")
+
+
+class MoodLog(Base):
+    __tablename__ = "mood_logs"
+    __table_args__ = (UniqueConstraint("user_id", "date", name="uq_mood_log_user_date"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("app_users.id", ondelete="CASCADE"), index=True
+    )
+    mood: Mapped[str] = mapped_column(String(32))
+    energy_level: Mapped[int] = mapped_column(Integer, default=5)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    date: Mapped[date] = mapped_column(Date, index=True)
+
+    user: Mapped["User"] = relationship(back_populates="mood_logs")
+
+
+class MenstrualCycle(Base):
+    __tablename__ = "menstrual_cycles"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("app_users.id", ondelete="CASCADE"), index=True
+    )
+    period_start: Mapped[date] = mapped_column(Date, index=True)
+    period_end: Mapped[date | None] = mapped_column(Date, nullable=True)
+    cycle_length: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    user: Mapped["User"] = relationship(back_populates="menstrual_cycles")

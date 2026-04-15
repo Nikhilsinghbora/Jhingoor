@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { BarChart3, Bot, Dumbbell, LayoutGrid, UserRound } from "lucide-react-native";
+import { BarChart3, Bot, Dumbbell, LayoutGrid, Sparkles, UserRound } from "lucide-react-native";
 import { StyleSheet, Text, View } from "react-native";
 
 import { ActivityScreen } from "../screens/ActivityScreen";
@@ -8,6 +8,7 @@ import { ChatScreen } from "../screens/ChatScreen";
 import { HomeScreen } from "../screens/HomeScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import { TrendsScreen } from "../screens/TrendsScreen";
+import { HealthStackNavigator } from "./HealthStackNavigator";
 import { colors } from "../theme/colors";
 
 export type MainTabParamList = {
@@ -15,6 +16,7 @@ export type MainTabParamList = {
   Activity: undefined;
   AIChat: undefined;
   Trends: undefined;
+  FitnessAI: undefined;
   Profile: undefined;
 };
 
@@ -93,6 +95,17 @@ export function MainTabs() {
           tabBarIcon: ({ focused }) => (
             <TabIcon focused={focused} label="TRENDS">
               <BarChart3 color={focused ? colors.primaryContainer : colors.onSurfaceVariant} size={22} />
+            </TabIcon>
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="FitnessAI"
+        component={HealthStackNavigator}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} label="FITNESS AI">
+              <Sparkles color={focused ? colors.primaryContainer : colors.onSurfaceVariant} size={22} />
             </TabIcon>
           ),
         }}

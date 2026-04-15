@@ -6,6 +6,7 @@ __pycache__/
 .coverage
 venv/
 env/
+.venv/
 .env
 *.so
 
@@ -17,7 +18,9 @@ Thumbs.db
 *.tmp
 *.swp
 *~
-
+.kiro
+.claude
+.agents/
 # IDE and editor generated files
 .idea/
 *.sublime-*

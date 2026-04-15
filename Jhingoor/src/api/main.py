@@ -1,10 +1,18 @@
+import sys
+from pathlib import Path
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+# Allows `uvicorn main:app` from src/api by adding src to import path.
+SRC_DIR = Path(__file__).resolve().parent.parent
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
 from api.config import settings
-from api.routers import activity, auth, chat, hydration, insights, progress, users
+from api.routers import activity, auth, chat, health, hydration, insights, progress, users
 
 app = FastAPI(title="Jhingoor API", version="1.0.0")
 
@@ -26,7 +34,7 @@ async def validation_handler(request: Request, exc: RequestValidationError) -> J
 
 
 @app.get("/health")
-async def health() -> dict[str, str]:
+async def healthcheck() -> dict[str, str]:
     return {"status": "ok"}
 
 
@@ -39,3 +47,4 @@ app.include_router(progress.router, prefix=API_PREFIX)
 app.include_router(hydration.router, prefix=API_PREFIX)
 app.include_router(chat.router, prefix=API_PREFIX)
 app.include_router(insights.router, prefix=API_PREFIX)
+app.include_router(health.router, prefix=API_PREFIX)

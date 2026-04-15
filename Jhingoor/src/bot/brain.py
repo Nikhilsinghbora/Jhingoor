@@ -8,9 +8,35 @@ import os
 from agents.prompts import SYSTEM_PROMPT
 
 load_dotenv()
-client = genai.Client()
+USE_VERTEX_AI = os.getenv("USE_VERTEX_AI", "false").strip().lower() in {"1", "true", "yes", "on"}
+VERTEX_PROJECT_ID = os.getenv("VERTEX_PROJECT_ID", "").strip()
+VERTEX_LOCATION = os.getenv("VERTEX_LOCATION", "us-central1").strip() or "us-central1"
 
-AI_MODEL = os.getenv("AI_MODEL")
+if USE_VERTEX_AI:
+    if not VERTEX_PROJECT_ID:
+        raise ValueError("USE_VERTEX_AI=true requires VERTEX_PROJECT_ID in environment.")
+    client = genai.Client(
+        vertexai=True,
+        project=VERTEX_PROJECT_ID,
+        location=VERTEX_LOCATION,
+    )
+    logging.info(
+        "LLM client initialized in Vertex AI mode (project=%s, location=%s).",
+        VERTEX_PROJECT_ID,
+        VERTEX_LOCATION,
+    )
+else:
+    client = genai.Client()
+    logging.info("LLM client initialized in Gemini Developer API mode.")
+
+# Prefer AI_MODEL; fall back to GOOGLE_AI_MODEL so .env matches the rest of the bot docs.
+_DEFAULT_MODEL = "gemini-2.0-flash"
+AI_MODEL = (
+    (os.getenv("AI_MODEL") or os.getenv("GOOGLE_AI_MODEL") or _DEFAULT_MODEL).strip()
+)
+if not AI_MODEL:
+    AI_MODEL = _DEFAULT_MODEL
+logging.info("Gemini chat model: %s", AI_MODEL)
 
 async def process_multimodel(prompt:str,file_path:str=None,mime_type:str = None)-> str:
     try: 
@@ -41,6 +67,10 @@ async def process_multimodel(prompt:str,file_path:str=None,mime_type:str = None)
         )
         return response.candidates[0].content.parts[0].text
     except Exception as e:
-        logging.error(f"Error in process_multimodel function: {e}")
+        logging.exception(
+            "process_multimodel failed (model=%s). If this is HTTP 404, set AI_MODEL to a "
+            "valid ID for your key (e.g. gemini-2.0-flash or gemini-2.5-flash).",
+            AI_MODEL,
+        )
         print("Error in process_multimodel function:", e)
         return "Sorry, I couldn't process your request at the moment."

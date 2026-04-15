@@ -17,6 +17,7 @@ type Props = {
  */
 export function GoogleSignInBlock({ setSession, loading, setLoading }: Props) {
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    clientId: process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID,
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
     androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
@@ -49,7 +50,10 @@ export function GoogleSignInBlock({ setSession, loading, setLoading }: Props) {
       loading={loading}
       onPress={async () => {
         if (!request) {
-          Alert.alert("Google", "OAuth request not ready. Check EXPO_PUBLIC_GOOGLE_* in .env.");
+          Alert.alert(
+            "Google",
+            "OAuth request not ready. Check EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID/WEB/IOS/ANDROID in mobile/.env.",
+          );
           return;
         }
         await promptAsync();

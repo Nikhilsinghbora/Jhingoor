@@ -2,8 +2,9 @@ import json
 import re
 
 from datetime import datetime
-
-import supabase
+from sqlalchemy import select
+from .models import ActivityLog, DailyLog
+from .session import AsyncSessionLocal
 
 async def save_jhingoor_data(user_id: int, raw_text: str, ai_response: str):
     # 1. Extract JSON from AI text using Regex
@@ -18,33 +19,38 @@ async def save_jhingoor_data(user_id: int, raw_text: str, ai_response: str):
     protein = data.get("protein", 0)
     log_type = data.get("type", "food")
 
-    # 2. Insert into activity_logs
-    supabase.table("activity_logs").insert({
-        "user_id": user_id,
-        "type": log_type,
-        "raw_text": raw_text,
-        "ai_json": data
-    }).execute()
+    today = datetime.utcnow().date()
 
-    # 3. Upsert into daily_logs
-    today = datetime.utcnow().date().isoformat()
-    
-    # We use 'rpc' (Remote Procedure Call) or a manual select/update
-    # For a clean interview demo, let's do a select then update
-    res = supabase.table("daily_logs").select("*").eq("user_id", user_id).eq("log_date", today).execute()
-    
-    if not res.data:
-        supabase.table("daily_logs").insert({
-            "user_id": user_id,
-            "total_calories": kcal,
-            "total_protein": protein
-        }).execute()
-    else:
-        new_kcal = res.data[0]['total_calories'] + kcal
-        new_protein = res.data[0]['total_protein'] + protein
-        supabase.table("daily_logs").update({
-            "total_calories": new_kcal,
-            "total_protein": new_protein
-        }).eq("user_id", user_id).eq("log_date", today).execute()
-        
+    async with AsyncSessionLocal() as session:
+        session.add(
+            ActivityLog(
+                user_id=user_id,
+                type=log_type,
+                raw_text=raw_text,
+                ai_json=data,
+            )
+        )
+
+        existing_daily = await session.scalar(
+            select(DailyLog).where(
+                DailyLog.user_id == user_id,
+                DailyLog.log_date == today,
+            )
+        )
+
+        if not existing_daily:
+            session.add(
+                DailyLog(
+                    user_id=user_id,
+                    log_date=today,
+                    total_calories=kcal,
+                    total_protein=protein,
+                )
+            )
+        else:
+            existing_daily.total_calories += kcal
+            existing_daily.total_protein += protein
+
+        await session.commit()
+
     return kcal, protein
