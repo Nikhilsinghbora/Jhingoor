@@ -144,21 +144,22 @@ Edit `.env` with real credentials. Important groups:
 | `JWT_SECRET`, `GOOGLE_CLIENT_IDS`, `APPLE_CLIENT_IDS`, `CORS_ORIGINS` | API auth and CORS (`src/api/config.py`). |
 | `ALEMBIC_SYNC_DATABASE_URL` or same `DB_*` | Alembic uses **psycopg2** sync URL (`alembic/env.py`). |
 | `TELEGRAM_TOKEN` | Bot (`src/main.py`). |
-| `AI_MODEL` + Gemini / API keys | `src/bot/brain.py` (chat + Telegram). |
-| `USE_VERTEX_AI`, `VERTEX_PROJECT_ID`, `VERTEX_LOCATION` | Enable Vertex AI mode in `src/bot/brain.py`. |
+| `AI_MODEL` + `GOOGLE_AI_MODEL` | `src/bot/brain.py` (chat + Telegram); defaults differ for Vertex vs Developer API. |
+| `USE_VERTEX_AI`, `VERTEX_PROJECT_ID`, `VERTEX_LOCATION` | **Vertex AI** (default in `.env.example`): `genai.Client(vertexai=True, ...)`. |
 
-### LLM provider mode (Gemini API key vs Vertex AI)
+### LLM provider mode (Vertex AI vs Gemini API key)
 
 `src/bot/brain.py` supports two modes:
 
-- Default (`USE_VERTEX_AI=false`): Gemini Developer API (`genai.Client()`), usually with `GEMINI_API_KEY` / `GOOGLE_AI_API_KEY`.
-- Vertex mode (`USE_VERTEX_AI=true`): `genai.Client(vertexai=True, project=..., location=...)`.
+- **Vertex AI** (`USE_VERTEX_AI=true`, default in `.env.example`): `genai.Client(vertexai=True, project=..., location=...)`. Default `AI_MODEL` is `gemini-2.0-flash-001` (published Vertex model id). Set `VERTEX_PROJECT_ID` to your GCP project.
+- **Gemini Developer API** (`USE_VERTEX_AI=false`): `genai.Client()`, usually with `GEMINI_API_KEY` / `GOOGLE_AI_API_KEY`. Default `AI_MODEL` is `gemini-2.0-flash`.
 
 For Vertex mode set:
 
 - `USE_VERTEX_AI=true`
 - `VERTEX_PROJECT_ID=<your-gcp-project-id>`
 - `VERTEX_LOCATION=us-central1` (or your region)
+- Optional: `AI_MODEL` — use a model id enabled for Vertex in your region (see GCP **Vertex AI → Model Garden**).
 
 Authenticate via Application Default Credentials (ADC), for example:
 
